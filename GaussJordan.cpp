@@ -5,6 +5,7 @@
 #include <cmath>
 #include <sstream>
 
+// Функция дял вычисления НОД
 int calculate_gcd(int a, int b)
 {
     while (b != 0)
@@ -26,7 +27,7 @@ public:
     // Метод для упрощения дроби (сокращение на НОД)
     void simplify()
     {
-        int gcdValue = calculate_gcd(abs(numerator), abs(denominator)); // Используем std::gcd
+        int gcdValue = calculate_gcd(abs(numerator), abs(denominator));
         numerator /= gcdValue;
         denominator /= gcdValue;
         if (denominator < 0)
@@ -198,48 +199,77 @@ void gaussJordan(std::vector<std::vector<Fraction>> &matrix)
 // Функция для определения и вывода решения системы
 void solveSystem(const std::vector<std::vector<Fraction>> &matrix)
 {
-    int m = matrix.size();        // Количество строк
-    int n = matrix[0].size() - 1; // Количество переменных
+    int m = matrix.size();
+    int n = matrix[0].size() - 1;
 
-    std::vector<Fraction> solution(n, Fraction(0)); // Вектор для хранения решения
+    std::vector<int> leadingVariables(n, -1);  // Индексы ведущих переменных
+    std::vector<bool> isFreeVariable(n, true); // Флаги для свободных переменных
 
+    // Определяем ведущие и свободные переменные
     for (int i = 0; i < m; ++i)
     {
         int col = 0;
-        // Пропускаем нулевые элементы в строке
         while (col < n && matrix[i][col] == Fraction(0))
         {
             ++col;
         }
 
-        if (col == n)
+        if (col < n)
         {
-            // Если все коэффициенты нулевые, но свободный член не нулевой
-            if (matrix[i][n] != Fraction(0))
-            {
-                std::cout << "Система не имеет решений." << std::endl;
-                return;
-            }
-        }
-        else if (col < n)
-        {
-            // Если есть ненулевой коэффициент
-            solution[col] = matrix[i][n]; // Записываем значение переменной
+            leadingVariables[col] = i;   // Запоминаем строку, где находится ведущая переменная
+            isFreeVariable[col] = false; // Эта переменная не свободная
         }
     }
 
-    // Выводим решение системы
-    std::cout << "Решение системы:" << std::endl;
-    for (int i = 0; i < n; ++i)
+    // Проверяем на противоречия (система не имеет решений)
+    for (int i = 0; i < m; ++i)
     {
-        std::cout << "x" << i + 1 << " = " << solution[i] << std::endl;
+        bool allZero = true;
+        for (int j = 0; j < n; ++j)
+        {
+            if (matrix[i][j] != Fraction(0))
+            {
+                allZero = false;
+                break;
+            }
+        }
+        if (allZero && matrix[i][n] != Fraction(0))
+        {
+            std::cout << "Система не имеет решений." << std::endl;
+            return;
+        }
+    }
+
+    // Выводим решение
+    std::cout << "Решение системы:" << std::endl;
+    for (int col = 0; col < n; ++col)
+    {
+        if (isFreeVariable[col])
+        {
+            // Свободная переменная
+            std::cout << "x" << col + 1 << " = свободная переменная" << std::endl;
+        }
+        else
+        {
+            // Ведущая переменная
+            int row = leadingVariables[col];
+            std::cout << "x" << col + 1 << " = " << matrix[row][n];
+            for (int j = col + 1; j < n; ++j)
+            {
+                if (matrix[row][j] != Fraction(0))
+                {
+                    std::cout << " - (" << matrix[row][j] << ") * x" << j + 1;
+                }
+            }
+            std::cout << std::endl;
+        }
     }
 }
 
 // Основная функция программы
 int main()
 {
-    std::ifstream input("C:/Users/latsu/GitHub_projects/ACOM/input.txt"); // Открываем файл для чтения
+    std::ifstream input("../input.txt"); // Открываем файл для чтения
     int m, n;
     input >> m >> n; // Читаем количество строк и переменных
 
