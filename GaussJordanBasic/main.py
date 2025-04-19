@@ -25,29 +25,43 @@ class EquationSolver:
     def solve(self):
         self.display_matrix()
 
-        for pivot_row in range(len(self.matrix)):
-            if self.matrix[pivot_row][pivot_row] == Fraction(0, 1):
+        pivot_row = 0
+        pivot_col = 0
+
+        while pivot_row < len(self.matrix) and pivot_col < len(self.matrix[0]):
+            # Поиск ненулевого ведущего элемента в текущем столбце
+            if self.matrix[pivot_row][pivot_col] == Fraction(0, 1):
+                for row in range(pivot_row + 1, len(self.matrix)):
+                    if self.matrix[row][pivot_col] != Fraction(0, 1):
+                        # Меняем строки местами
+                        self.matrix[pivot_row], self.matrix[row] = self.matrix[row], self.matrix[pivot_row]
+                        break
+                else:
+                    # Если все элементы в столбце равны нулю, переходим к следующему столбцу
+                    pivot_col += 1
+                    continue
+
+            # Нормализация ведущей строки
+            pivot = self.matrix[pivot_row][pivot_col]
+            if pivot == Fraction(0, 1):
+                pivot_col += 1
                 continue
 
-            for row in range(len(self.matrix)):
-                for col in range(pivot_row + 1, len(self.matrix[row])):
-                    if row != pivot_row:
-                        self.matrix[row][col] -= (
-                            self.matrix[pivot_row][col] * self.matrix[row][pivot_row]
-                        ) / self.matrix[pivot_row][pivot_row]
-
             for col in range(len(self.matrix[pivot_row])):
-                if col != pivot_row:
-                    self.matrix[pivot_row][col] /= self.matrix[pivot_row][pivot_row]
+                self.matrix[pivot_row][col] /= pivot
 
-            self.matrix[pivot_row][pivot_row] = Fraction(1, 1)
-
+            # Исключение текущего столбца в других строках
             for row in range(len(self.matrix)):
                 if row != pivot_row:
-                    self.matrix[row][pivot_row] = Fraction(0, 1)
+                    factor = self.matrix[row][pivot_col]
+                    for col in range(len(self.matrix[row])):
+                        self.matrix[row][col] -= self.matrix[pivot_row][col] * factor
 
             print()
             self.display_matrix()
+
+            pivot_row += 1
+            pivot_col += 1
 
         if not self.has_solutions():
             print("\nNo solution exists.")
@@ -59,7 +73,7 @@ class EquationSolver:
         variables = len(self.matrix[0][:-1])
         rank = len(self.matrix)
         combinations = math.factorial(variables) // (
-            math.factorial(rank) * math.factorial(variables - rank)
+                math.factorial(rank) * math.factorial(variables - rank)
         )
 
         print(f"\nAll possible variable combinations ({combinations}):")
@@ -70,7 +84,7 @@ class EquationSolver:
         ]
 
         for combo in combinations_list:
-            print(''.join(f"x{x+1}" for x in combo))
+            print(''.join(f"x{x + 1}" for x in combo))
 
         if len(combinations_list) > combinations:
             raise RuntimeError("Combination count mismatch.")
@@ -79,7 +93,13 @@ class EquationSolver:
 
         for combo in combinations_list:
             matrix_copy = copy.deepcopy(self.matrix)
-            print(''.join(f"x{x+1}" for x in combo))
+            print(''.join(f"x{x + 1}" for x in combo))
+
+            # Проверка линейной независимости выбранных столбцов
+            submatrix = [[matrix_copy[row][col] for col in combo] for row in range(len(matrix_copy))]
+            if self.is_linearly_dependent(submatrix):
+                print("Solution: ∅ (Linearly dependent)\n")
+                continue
 
             if any(all(row[x] == row[0] for x in combo) for row in matrix_copy):
                 print("Solution: ∅\n")
@@ -113,8 +133,8 @@ class EquationSolver:
                             for c in range(col + 1, len(matrix_copy[row])):
                                 if row != pivot:
                                     matrix_copy[row][c] -= (
-                                        matrix_copy[pivot][c] * matrix_copy[row][col]
-                                    ) / matrix_copy[pivot][col]
+                                                                   matrix_copy[pivot][c] * matrix_copy[row][col]
+                                                           ) / matrix_copy[pivot][col]
 
                         for c in range(len(matrix_copy[pivot])):
                             if c != col:
@@ -143,12 +163,51 @@ class EquationSolver:
 
             print(f"Solution: {solution}\n")
 
+    def is_linearly_dependent(self, submatrix):
+        """Проверяет, являются ли столбцы линейно зависимыми."""
+        if len(submatrix) == 0 or len(submatrix[0]) == 0:
+            return True
+
+        # Приводим подматрицу к ступенчатому виду
+        for pivot_row in range(len(submatrix)):
+            pivot_col = pivot_row
+            if pivot_col >= len(submatrix[0]):
+                break
+
+            if submatrix[pivot_row][pivot_col] == Fraction(0, 1):
+                for row in range(pivot_row + 1, len(submatrix)):
+                    if submatrix[row][pivot_col] != Fraction(0, 1):
+                        submatrix[pivot_row], submatrix[row] = submatrix[row], submatrix[pivot_row]
+                        break
+                else:
+                    continue
+
+            pivot = submatrix[pivot_row][pivot_col]
+            if pivot == Fraction(0, 1):
+                continue
+
+            for col in range(len(submatrix[pivot_row])):
+                submatrix[pivot_row][col] /= pivot
+
+            for row in range(len(submatrix)):
+                if row != pivot_row:
+                    factor = submatrix[row][pivot_col]
+                    for col in range(len(submatrix[row])):
+                        submatrix[row][col] -= submatrix[pivot_row][col] * factor
+
+        # Если в ступенчатом виде есть нулевая строка, столбцы линейно зависимы
+        for row in submatrix:
+            if all(x == Fraction(0, 1) for x in row):
+                return True
+
+        return False
+
     def is_unit(self, fraction):
         return abs(fraction.numerator) == 1 and abs(fraction.denominator) == 1
 
     def has_solutions(self):
         i = 0
-        while i < len(self.matrix):
+        while (i < len(self.matrix)):
             max_val = max(self.matrix[i][:-1], key=lambda x: x.numerator)
             min_val = min(self.matrix[i][:-1], key=lambda x: x.numerator)
 
